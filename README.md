@@ -18,5 +18,5 @@ integrações backend PHP
 Compatível com aplicações PHP tradicionais, WordPress, Laravel, sistemas legados e projetos modernos.
 
 O SDK utiliza autenticação segura baseada em HMAC e é compatível com a arquitetura realtime multiprotocolo da F5HLIVE.
-<b>
+<br>
 PHP SDK for authenticated realtime event publishing with support for public, private and presence channels using the F5HLIVE multiprotocol realtime infrastructure.
