@@ -1,19 +1,10 @@
-F5HLIVE PHP SDK
+## Aviso sobre SDK de terceiros
 
-SDK PHP compatível com a infraestrutura realtime da F5HLIVE.
+Este SDK é baseado em biblioteca de terceiros distribuída sob licença MIT.
 
-Permite enviar eventos autenticados em tempo real utilizando API Key, Secret Key e App ID de forma simples e integrada com canais públicos, privados e presence channels.
+A F5HLIVE não é a desenvolvedora original da biblioteca base.  
+Este repositório fornece uma integração compatível e funcional com a infraestrutura F5HLIVE Realtime API.
 
-Ideal para:
+O SDK pode conter referências ao projeto original, preservadas conforme a licença e os créditos originais.
 
-chats em tempo real
-notificações
-dashboards
-atualizações dinâmicas
-automações
-streaming de eventos
-integrações backend PHP
-
-Compatível com aplicações PHP tradicionais, WordPress, Laravel, sistemas legados e projetos modernos.
-
-O SDK utiliza autenticação segura baseada em HMAC e é compatível com a arquitetura realtime multiprotocolo da F5HLIVE.
+Use este SDK para conectar aplicações à F5HLIVE Realtime API utilizando uma interface compatível com o ecossistema Pusher.
