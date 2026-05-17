@@ -9,4 +9,7 @@ O SDK pode conter referências ao projeto original, preservadas conforme a licen
 
 Use este SDK para conectar aplicações à F5HLIVE Realtime API utilizando uma interface compatível com o ecossistema Pusher.
 <br>
+
+<br>Para instalação manual<br>
+<br>
 vendor/pusher
