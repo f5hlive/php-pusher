@@ -8,3 +8,5 @@ Este repositório fornece uma integração compatível e funcional com a infraes
 O SDK pode conter referências ao projeto original, preservadas conforme a licença e os créditos originais.
 
 Use este SDK para conectar aplicações à F5HLIVE Realtime API utilizando uma interface compatível com o ecossistema Pusher.
+<br>
+vendor/pusher
