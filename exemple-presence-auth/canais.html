@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teste de Presence</title>
+  <script src="https://sdk.f5hlive.com.br/pusher/8.5.0/pusher.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #10131a;
+      color: #eef2ff;
+    }
+
+    body { margin: 0; padding: 24px; }
+    main { max-width: 80%; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 1.35rem; }
+    p { color: #aab4ca; line-height: 1.5; }
+    code { color: #9bc1ff; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 12px;
+      margin: 22px 0 14px;
+    }
+
+    .card {
+      background: #191e29;
+      border: 1px solid #2d3548;
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 82px;
+    }
+
+    .label { color: #aab4ca; font-size: .8rem; }
+    .value { display: block; margin-top: 8px; font-size: 1.35rem; font-weight: 700; }
+    .on { color: #61d7a8; }
+    .off, .error { color: #ff8f9b; }
+    .muted { color: #aab4ca; font-size: .85rem; }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: #4b7dff;
+      color: #fff;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover { background: #3d6bea; }
+
+    #log {
+      min-height: 78px;
+      max-height: 220px;
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid #2d3548;
+      border-radius: 10px;
+      background: #0c0f15;
+      color: #b9c3d8;
+      font: .82rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Presence: teste de contadores</h1>
+    <p>
+      Canal: <code id="channel-name">presence-canais-demo</code>. Abra esta página em outra aba
+      para validar entrada, saída e os contadores de membros.
+    </p>
+
+     <section class="grid" aria-label="Contadores realtime">
+      <article class="card">
+        <span class="label">statusSocketid</span>
+        <strong id="socket-status" class="value off">off</strong>
+      </article>
+      <article class="card">
+        <span class="label">socket_id</span>
+        <strong id="socket-id" class="value muted">—</strong>
+      </article>
+      <article class="card">
+        <span class="label">Presence users (realtime)</span>
+        <strong id="presence-count" class="value">0</strong>
+      </article>
+      <article class="card">
+        <span class="label">Conectados no canal (realtime)</span>
+        <strong id="api-socket-count" class="value">0</strong>
+      </article>
+      <article class="card">
+        <span class="label">countChannel (API)</span>
+        <strong id="api-channel-count" class="value muted">—</strong>
+      </article>
+    </section>
+
+    <p id="api-note" class="muted">
+      Conectados / Presence users vêm em tempo real do SDK (sem API). O countChannel
+      (total de canais no servidor) precisa de um proxy assinado do backend — a API REST
+      é assinada e o secret não deve ir para o navegador.
+    </p>
+
+    <div class="actions">
+      <button type="button" id="refresh-status">Atualizar countChannel da API</button>
+      <button type="button" id="reconnect">Reconectar</button>
+    </div>
+
+    <div id="log" aria-live="polite"></div>
+  </main>
+
+  <script>
+
+    // Ajuste somente estes valores para a sua chave e canal de teste.
+    const APP_KEY = 'SUA_API_KEY'; // ← troque pela sua api_key real  
+    const CHANNEL_NAME = 'presence-canais-demo';
+
+    // Proxy PHP que assina GET /apps/:app_id/realtime/status (o secret fica no servidor).
+    // Local (Laragon): '/exemple-presence-auth/presence-validator/status.php'
+    // Produção: troque pelo caminho real do proxy no seu domínio.
+    const STATUS_PROXY_URL = '/exemple-presence-auth/presence-validator/status.php';
+
+    Pusher.logToConsole = true;
+    document.querySelector('#channel-name').textContent = CHANNEL_NAME;
+
+    const socketStatus = document.querySelector('#socket-status');
+    const socketId = document.querySelector('#socket-id');
+    const presenceCount = document.querySelector('#presence-count');
+    const apiSocketCount = document.querySelector('#api-socket-count');
+    const apiChannelCount = document.querySelector('#api-channel-count');
+    const apiNote = document.querySelector('#api-note');
+    const log = document.querySelector('#log');
+
+    let pusher;
+    let channel;
+
+    function writeLog(message, type = '') {
+      const line = document.createElement('div');
+      line.className = type;
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      log.prepend(line);
+    }
+
+    function setSocketStatus(online) {
+      socketStatus.textContent = online ? 'on' : 'off';
+      socketStatus.className = `value ${online ? 'on' : 'off'}`;
+      socketId.textContent = online ? (pusher.connection.socket_id || '—') : '—';
+    }
+
+    // Contagem em TEMPO REAL: vem do SDK, sem API assinada.
+    // presence.members.count = usuários únicos no canal (alimentado pelo server
+    // via subscription_succeeded + member_added/member_removed).
+    function updateRealtimeCounts() {
+      const count = channel && channel.members ? channel.members.count : 0;
+      presenceCount.textContent = String(count);
+      apiSocketCount.textContent = String(count);
+    }
+
+    async function refreshChannelCountApi() {
+      if (!STATUS_PROXY_URL) {
+        apiNote.textContent = 'countChannel precisa de STATUS_PROXY_URL (proxy assinado do backend). Os contadores de conectados já aparecem em tempo real acima.';
+        return;
+      }
+
+      try {
+        const endpoint = new URL(STATUS_PROXY_URL, window.location.origin);
+        endpoint.searchParams.set('socket_id', pusher.connection.socket_id || '');
+        endpoint.searchParams.set('channel', CHANNEL_NAME);
+        const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+
+        apiChannelCount.textContent = data.countChannel ?? '—';
+        apiNote.textContent = `API: canais abertos=${data.countChannel ?? 0} · socket ${data.statusSocketid || 'off'}`;
+        writeLog(`API: countChannel=${data.countChannel ?? 0}, sockets no canal=${data.countSocketidChannel ?? 0}`);
+      } catch (error) {
+        apiNote.textContent = `Falha na API: ${error.message}`;
+        writeLog(`Falha ao consultar API: ${error.message}`, 'error');
+      }
+    }
+
+    function connect() {
+      if (pusher) pusher.disconnect();
+
+      pusher = new Pusher(APP_KEY, {
+        cluster: 'custom',
+        channelAuthorization: {
+          endpoint: '/exemple-presence-auth/presence-validator/auth.php',
+          transport: 'ajax'
+        }
+      });
+
+      pusher.connection.bind('state_change', ({ current }) => {
+        const online = current === 'connected';
+        setSocketStatus(online);
+        writeLog(`Conexão: ${current}`, online ? 'on' : '');
+        if (online) refreshChannelCountApi();
+      });
+
+      channel = pusher.subscribe(CHANNEL_NAME);
+      channel.bind('pusher:subscription_succeeded', () => {
+        updateRealtimeCounts();
+        writeLog(`Inscrito em ${CHANNEL_NAME}; conectados=${channel.members.count}`, 'on');
+        refreshChannelCountApi();
+      });
+      channel.bind('pusher:member_added', member => {
+        updateRealtimeCounts();
+        writeLog(`Entrou: ${member.id}; conectados=${channel.members.count}`, 'on');
+      });
+      channel.bind('pusher:member_removed', member => {
+        updateRealtimeCounts();
+        writeLog(`Saiu: ${member.id}; conectados=${channel.members.count}`);
+      });
+      channel.bind('pusher:subscription_error', error => {
+        writeLog(`Erro de inscrição: ${JSON.stringify(error)}`, 'error');
+      });
+    }
+
+    document.querySelector('#refresh-status').addEventListener('click', refreshChannelCountApi);
+    document.querySelector('#reconnect').addEventListener('click', connect);
+    connect();
+  </script>
+</body>
+</html>
